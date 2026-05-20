@@ -1,0 +1,13 @@
+# 随机图关键词映射
+# path:     网盘绝对路径（以 / 开头）
+# keywords: 触发关键词列表（消息中包含任一即触发）
+
+random_images:
+  - path: /图片/奶龙
+    keywords:
+      - 奶龙
+      - 来张奶龙
+      - 奶龙图片
+  - path: /test
+    keywords:
+      - test

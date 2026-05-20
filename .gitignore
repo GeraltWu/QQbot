@@ -1,0 +1,31 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+
+# Environments
+.env
+.venv/
+venv/
+
+# SQLite databases
+*.db
+*.sqlite3
+*.sqlite3-journal
+
+# Local data
+/data/
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pytype/
+
+# Packaging
+dist/
+build/
+*.egg-info/
+
+.claude/
+.vscode/
+/tests/
