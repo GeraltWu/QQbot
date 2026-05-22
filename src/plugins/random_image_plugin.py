@@ -18,7 +18,7 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, Me
 from nonebot.rule import Rule
 
 from repositories import zerodrive_repository
-from services.zerodrive_service import login, random_image as zd_random_image
+from services.zerodrive_service import login, random_file
 
 _CONFIG_PATH = Path("config") / "zerodrive_random.yaml"
 
@@ -127,14 +127,14 @@ async def _handle(bot: Bot, event: MessageEvent) -> None:
     if token is None:
         return
 
-    result = await zd_random_image(token=token, path=path)
+    result = await random_file(token=token, path=path, mime_prefix="image/")
     if isinstance(result.get("error"), str):
         if "登录已过期" in result["error"] or "401" in result["error"]:
             token = await _refresh_admin_token()
             if token is None:
                 await _send_text(bot, event, "管理员登录失败，请检查 ZeroDrive 账号配置。")
                 return
-            result = await zd_random_image(token=token, path=path)
+            result = await random_file(token=token, path=path, mime_prefix="image/")
             if isinstance(result.get("error"), str):
                 await _send_text(bot, event, f"随机图片失败：{result['error']}")
                 return

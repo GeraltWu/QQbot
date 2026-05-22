@@ -10,7 +10,7 @@ from bot_core.help_registry import register_help_section
 
 __all__ = [
     "login",
-    "random_image",
+    "random_file",
     "resolve_path_to_id",
     "upload_file",
     "ROOT_ID",
@@ -108,19 +108,20 @@ async def resolve_path_to_id(token: str, path: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 随机图片（调 /api/bot/random-image）
+# 随机文件（调 /api/bot/random-file）
 # ---------------------------------------------------------------------------
-async def random_image(
+async def random_file(
     *,
     token: str,
     path: str,
-    mime_prefix: str = "image/",
+    mime_prefix: str,
     extensions: str | None = None,
 ) -> dict:
-    """在指定文件夹直接子级中随机取一张图片。
-    成功返回 {"node_id":"...","name":"...","download_url":"...","folder":{...}}，失败 {"error":"..."}。"""
+    """path 有后缀则精确匹配，无后缀则在文件夹内随机选一个匹配 mime_prefix 的文件。
+    成功返回 {"node_id":"...","name":"...","mime_type":"...","download_url":"...","folder":{...},"picked":"random"|"exact"}，
+    失败 {"error":"..."}。"""
     api_path = path.strip()
-    url = f"{_base_url()}/api/bot/random-image"
+    url = f"{_base_url()}/api/bot/random-file"
     params: dict[str, str] = {"path": api_path, "mime_prefix": mime_prefix}
     if extensions:
         params["extensions"] = extensions
@@ -144,19 +145,19 @@ async def random_image(
     try:
         body = resp.json()
     except ValueError:
-        return {"error": "随机图片返回了非 JSON 内容。"}
+        return {"error": "随机文件返回了非 JSON 内容。"}
 
     if resp.status_code >= 400:
         code = body.get("code")
         if code in (404, 40402):
-            return {"error": f"目录不存在：{path}"}
+            return {"error": f"路径不存在：{path}"}
         if code == 40403:
-            return {"error": f"该目录下无图片：{path}"}
-        return {"error": f"随机图片失败：{body.get('msg', f'HTTP {resp.status_code}')}"}
+            return {"error": f"该目录下无符合条件的文件：{path}"}
+        return {"error": f"随机文件失败：{body.get('msg', f'HTTP {resp.status_code}')}"}
 
     data = body.get("data")
     if not isinstance(data, dict) or not data.get("download_url"):
-        return {"error": "随机图片响应格式异常。"}
+        return {"error": "随机文件响应格式异常。"}
     return data
 
 
@@ -212,6 +213,7 @@ register_help_section(
         "/网盘状态（查看当前绑定和目录）\n"
         "/上传 /图片/奶龙（进入上传模式，发图片上传，发文字退出）\n"
         "/上传（使用默认目录进入上传模式）\n"
-        "关键词随机图：在 config/zerodrive_random.yaml 配置"
+        "关键词随机图：在 config/zerodrive_random.yaml 配置\n"
+        "关键词语音：在 config/zerodrive_audio.yaml 配置"
     ),
 )
