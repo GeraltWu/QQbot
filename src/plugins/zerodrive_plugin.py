@@ -243,44 +243,6 @@ async def _handle_upload_session_message(bot: Bot, event: MessageEvent) -> None:
             await bot.send_private_msg(user_id=int(target_id), message=msg)
 
 
-# ---------------------------------------------------------------------------
-# 自动上传（绑定用户发图片时自动上传到默认目录）
-# ---------------------------------------------------------------------------
-async def _auto_upload_rule(event: MessageEvent) -> bool:
-    if not _extract_images(event.message):
-        return False
-    text = event.get_plaintext().strip()
-    if text.startswith("/"):
-        return False
-    creds = await zerodrive_repository.get_credentials(
-        bot_self_id=str(event.self_id),
-        qq_user_id=str(event.get_user_id()),
-    )
-    if creds is None:
-        return False
-    if creds.get("default_parent_id") is None:
-        return False
-    return True
-
-
-auto_upload = on_message(rule=Rule(_auto_upload_rule), priority=20, block=False)
-
-
-@auto_upload.handle()
-async def _handle_auto_upload(bot: Bot, event: MessageEvent) -> None:
-    creds = await zerodrive_repository.get_credentials(
-        bot_self_id=str(event.self_id),
-        qq_user_id=str(event.get_user_id()),
-    )
-    if creds is None or creds.get("default_parent_id") is None:
-        return
-    images = _extract_images(event.message)
-    if not images:
-        return
-    parent_id = creds["default_parent_id"]
-    display_path = creds.get("default_path") or "默认目录"
-    await _do_upload_images(bot, event, images, creds["access_token"], parent_id, display_path)
-
 
 # ---------------------------------------------------------------------------
 # 工具函数

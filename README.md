@@ -10,3 +10,8 @@
 ## Documentation
 
 See [Docs](https://nonebot.dev/)
+
+待新增：
+1. 新增发送语音
+2. 接入大模型
+3. 发送视频

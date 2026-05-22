@@ -12,9 +12,6 @@ venv/
 *.sqlite3
 *.sqlite3-journal
 
-# Local data
-/data/
-
 # Tool caches
 .mypy_cache/
 .pytest_cache/
