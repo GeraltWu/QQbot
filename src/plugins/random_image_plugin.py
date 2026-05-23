@@ -17,6 +17,7 @@ from nonebot import on_message
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.rule import Rule
 
+from bot_core.golden_fx import maybe_add_ssr_effect
 from repositories import zerodrive_repository
 from services.zerodrive_service import login, random_file
 
@@ -156,6 +157,7 @@ async def _handle(bot: Bot, event: MessageEvent) -> None:
         await _send_text(bot, event, f"下载图片失败：{e}")
         return
 
+    image_bytes = maybe_add_ssr_effect(image_bytes)
     b64 = base64.b64encode(image_bytes).decode()
     msg = MessageSegment.image(file=f"base64://{b64}")
     await _send(bot, event, msg)
