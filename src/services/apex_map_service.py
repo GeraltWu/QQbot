@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -13,10 +14,14 @@ import httpx
 from bot_core.help_registry import register_help_section
 
 _CN_TZ = ZoneInfo("Asia/Shanghai")
+_LOGGER = logging.getLogger(__name__)
 _READABLE_FMT = "%Y-%m-%d %H:%M:%S"
 _SHIFT_READABLE_HOURS = 8  # 接口可读时间相对东八区偏 8 小时，展示前加 8 小时
+_HTTP_OK = 200
+_HTTP_FORBIDDEN = 403
+_HTTP_TOO_MANY_REQUESTS = 429
 
-__all__ = ["fetch_map_rotation_text"]
+__all__ = ["fetch_map_rotation_card", "fetch_map_rotation_text"]
 
 _MAPROTATION_PATH = "/maprotation"
 
@@ -87,7 +92,7 @@ def _shift_readable_to_display(raw: str) -> str:
     """接口返回的可读时间整体加 8 小时后再展示（按东八区习惯）。"""
     s = raw.strip()
     try:
-        naive = datetime.strptime(s, _READABLE_FMT)
+        naive = datetime.strptime(s, _READABLE_FMT).replace(tzinfo=timezone.utc)
     except ValueError:
         return s
     shifted = naive + timedelta(hours=_SHIFT_READABLE_HOURS)
@@ -112,7 +117,7 @@ def _display_end_time_str(phase: dict[str, Any]) -> str | None:
     end = phase.get("end")
     if isinstance(end, (int, float)):
         try:
-            dt_utc = datetime.fromtimestamp(float(end), tz=UTC)
+            dt_utc = datetime.fromtimestamp(float(end), tz=timezone.utc)
             return dt_utc.astimezone(_CN_TZ).strftime(_READABLE_FMT)
         except (OSError, OverflowError, ValueError):
             return None
@@ -178,7 +183,7 @@ def _format_payload(data: dict[str, Any]) -> str:
     return "\n".join(pieces)
 
 
-async def fetch_map_rotation_text() -> str:
+async def _request_map_rotation() -> dict[str, Any] | str:  # noqa: PLR0911
     key = _apex_api_key()
     if not key:
         return "未配置环境变量 APEX_API_KEY，无法查询地图轮换。"
@@ -197,9 +202,9 @@ async def fetch_map_rotation_text() -> str:
     except httpx.RequestError:
         return "网络请求失败，请稍后再试。"
 
-    if resp.status_code == 403:
+    if resp.status_code == _HTTP_FORBIDDEN:
         return "API Key 无效或未授权（HTTP 403）。"
-    if resp.status_code == 429:
+    if resp.status_code == _HTTP_TOO_MANY_REQUESTS:
         return "请求过于频繁，触发了接口限流（HTTP 429），请稍后再试。"
 
     try:
@@ -214,10 +219,33 @@ async def fetch_map_rotation_text() -> str:
     if api_err:
         return f"接口错误：{api_err}"
 
-    if resp.status_code != 200:
+    if resp.status_code != _HTTP_OK:
         return f"查询失败（HTTP {resp.status_code}），请稍后再试。"
 
-    return _format_payload(data)
+    return data
+
+
+async def fetch_map_rotation_text() -> str:
+    """查询地图轮换并返回纯文本；供调试工具和图片降级使用。"""
+    result = await _request_map_rotation()
+    if isinstance(result, str):
+        return result
+    return _format_payload(result)
+
+
+async def fetch_map_rotation_card() -> bytes | str:
+    """查询地图轮换并返回 PNG；查询或渲染失败时返回可直接发送的文本。"""
+    result = await _request_map_rotation()
+    if isinstance(result, str):
+        return result
+
+    try:
+        from services.apex_map_card import render_map_rotation_card
+
+        return await render_map_rotation_card(result)
+    except Exception:  # 图片是增强能力，不能阻断原有查询功能
+        _LOGGER.exception("Apex 地图卡片渲染失败，已回退为文本")
+        return _format_payload(result)
 
 
 register_help_section(
